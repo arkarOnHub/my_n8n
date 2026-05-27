@@ -11,8 +11,19 @@ services:
       - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf
       - ./mosquitto/data:/mosquitto/data
       - ./mosquitto/log:/mosquitto/log
+
+  influxdb:
+    image: influxdb:2
+    container_name: influxdb
+
+    ports:
+      - "8086:8086"
+
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
       
   n8n:
+    container_name: n8n
     image: n8nio/n8n:2.19.5
     restart: unless-stopped
     ports:
@@ -20,8 +31,26 @@ services:
     environment:
       - GENERIC_TIMEZONE=Asia/Bangkok
       - TZ=Asia/Bangkok
-      - WEBHOOK_URL=http://localhost:5678/
+      - WEBHOOK_URL=https://n8n.htetarkar.online/
+      - N8N_HOST=n8n.htetarkar.online
+      - N8N_PROTOCOL=https
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
     volumes:
       - ./n8n_data:/home/node/.n8n
       - ./output_files:/output_files
+    depends_on:
+      - mosquitto
+      - influxdb
+
+  tunnel:
+    container_name: cloudflared-tunnel
+    image: cloudflare/cloudflared:latest
+    restart: always
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=eyJhIjoiODcxOTAyMWJiOTgzYjQ1YzhiZTZlYjc4Y2QwNWYxYzQiLCJ0IjoiOGZmOWI0OGMtN2NlYy00MjBmLWFlYzctZThmMWQ2YjBkZGRiIiwicyI6Ik5XTmtNamxtWVRjdFpUQTFNeTAwWXpjekxXSTRZall0WkdFNE1UTTVNbVJsTjJFeSJ9
+    depends_on:
+      - n8n
+
+volumes:
+  influxdb-data:
